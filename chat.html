@@ -529,6 +529,7 @@
 				if (rooms[i][0] == room){
 					checkLang(room, lang, function(err, result){
 						if (err) throw err;
+						alert("Checked language '" + lang + "'");
 						if (lang[1] == ' '){
 							lang = lang.substring(1);
 						}

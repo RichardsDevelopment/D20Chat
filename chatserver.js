@@ -98,6 +98,22 @@ io.on('connect', function(socket){
 		});
 	}
 
+	// Function to find all documents with matching values for field given
+	function mongoFindAllRooms(collection, field, value, extra, callback){
+		var searchobj = {};
+		searchobj[field] = value;
+		
+		console.log("Finding all records where {" + field + " : " + value + "} in " + collection);
+		
+		dbo.collection(collection).find(searchobj).sort().toArray(function(err, result){
+			if (err) throw err;
+			result.forEach(function(doc){
+				console.log(doc.room_name);
+			});
+			callback(result, extra);
+		});
+	}
+
 	
 	// Function to find all documents given collection, field, value, sorted and limited
 	function mongoFindAllSortLimit(collection, field, value, sort, limit, callback){
@@ -394,8 +410,10 @@ io.on('connect', function(socket){
 				if (result_p == checkPass){
 					console.log("Passwords Match!");
 					
-					mongoFindAll("roomid", "userID", result._id, [result._id.toString(), result.email], function(result, extra){
+					mongoFindAllRooms("roomid", "userID", result._id, [result._id.toString(), result.email], function(result, extra){
+		//console.log(userID + " and " + email)
 						var roomArray = new Array();
+						var retRoomArray = new Array();
 						var roomNameArray = new Array();
 							
 						if (result.length == 0){
@@ -403,9 +421,9 @@ io.on('connect', function(socket){
 							console.log("No rooms for user " + extra[0]);
 						}
 						else{
-							console.log("Rooms found where user is GM");
+							//console.log("Rooms found where user is GM");
 							result.forEach(function(doc){
-								console.log("Room " + doc._id.toString() + " found for user " + doc.userID.toString());
+								//console.log("Room " + doc._id.toString() + " found for user " + doc.userID.toString());
 								roomArray.push([doc._id.toString(), "GM", "ALL"]);
 							});
 						}
@@ -422,21 +440,25 @@ io.on('connect', function(socket){
 								});
 							}
 							if (roomArray.length > 0){
-								for (var i = 0; i < roomArray.length; i++){
-									getRoomNames(new ObjectID(roomArray[i][0]), function(data){
+								roomArray.forEach(function(room){
+									getRoomNames(new ObjectID(room[0]), function(data){
 										if(data == null){
-											console.log("No room found for room id: " + roomArray[i][0]);
+											console.log("No room found for room id: " + room[0]);
 											// Do nothing, no rooms exist for user
 										}
 										else{
 											//console.log(data.room_name);
+											retRoomArray.push(room);
 											roomNameArray.push(data.room_name);
+											console.log("RoomID: " + data._id.toString() + " room_name: " + data.room_name + " at index " + (roomNameArray.length-1));
 										}
 										if (roomNameArray.length == roomArray.length){
-											socket.emit('login status', "success", extra[1], extra[0], roomArray, roomNameArray);
+											console.log("Room Array: " + retRoomArray);
+											console.log("Room Name Array: " + roomNameArray);	
+											socket.emit('login status', "success", extra[1], extra[0], retRoomArray, roomNameArray);
 										}	
 									});
-								}
+								});
 							}
 							else{
 								socket.emit('login status', "success", extra[1], extra[0], roomArray, roomNameArray);
@@ -459,56 +481,62 @@ io.on('connect', function(socket){
 	
 	// reload room button list 
 	socket.on('reload rooms', function(userID, email){
-		mongoFindAll("roomid", "userID", userID, [userID, email], function(result, extra){
-						var roomArray = new Array();
-						var roomNameArray = new Array();
+	mongoFindAllRooms("roomid", "userID", new ObjectID(userID), [userID, email], function(result, extra){
+		//console.log(userID + " and " + email)
+		var roomArray = new Array();
+		var retRoomArray = new Array();
+		var roomNameArray = new Array();
 							
-						if (result.length == 0){
-							// leave arrays empty
-							console.log("No rooms for user " + extra[0]);
+		if (result.length == 0){
+			// leave arrays empty
+			console.log("No rooms for user " + extra[0]);
+		}
+		else{
+			//console.log("Rooms found where user is GM");
+			result.forEach(function(doc){
+				//console.log("Room " + doc._id.toString() + " found for user " + doc.userID.toString());
+				roomArray.push([doc._id.toString(), "GM", "ALL"]);
+			});
+		}
+		mongoFindAll("chars", "userID", new ObjectID(extra[0]), extra, function(result, extra){							
+			if (result == null){
+				console.log("No characters for user " + extra[0] + " with email " + extra[1]);
+				// leave arrays empty
+			}
+			else{
+				result.forEach(function(doc){
+					trimmedLangs(doc.roomID.toString(), doc.char_name, doc.char_langs, function(data){
+						roomArray.push(data);
+					});
+				});
+			}
+			if (roomArray.length > 0){
+				roomArray.forEach(function(room){
+					getRoomNames(new ObjectID(room[0]), function(data){
+						if(data == null){
+							console.log("No room found for room id: " + room[0]);
+							// Do nothing, no rooms exist for user
 						}
 						else{
-							console.log("Rooms found where user is GM");
-							result.forEach(function(doc){
-								console.log("Room " + doc._id.toString() + " found for user " + doc.userID.toString());
-								roomArray.push([doc._id.toString(), "GM", "ALL"]);
-							});
+							//console.log(data.room_name);
+							retRoomArray.push(room);
+							roomNameArray.push(data.room_name);
+							console.log("RoomID: " + data._id.toString() + " room_name: " + data.room_name + " at index " + (roomNameArray.length-1));
 						}
-						mongoFindAll("chars", "userID", new ObjectID(extra[0]), extra, function(result, extra){							
-							if (result == null){
-								console.log("No characters for user " + extra[0] + " with email " + extra[1]);
-								// leave arrays empty
-							}
-							else{
-								result.forEach(function(doc){
-									trimmedLangs(doc.roomID.toString(), doc.char_name, doc.char_langs, function(data){
-										roomArray.push(data);
-									});
-								});
-							}
-							if (roomArray.length > 0){
-								for (var i = 0; i < roomArray.length; i++){
-									getRoomNames(new ObjectID(roomArray[i][0]), function(data){
-										if(data == null){
-											console.log("No room found for room id: " + roomArray[i][0]);
-											// Do nothing, no rooms exist for user
-										}
-										else{
-											//console.log(data.room_name);
-											roomNameArray.push(data.room_name);
-										}
-										if (roomNameArray.length == roomArray.length){
-											socket.emit('login status', "success", extra[1], extra[0], roomArray, roomNameArray);
-										}	
-									});
-								}
-							}
-							else{
-								socket.emit('login status', "success", extra[1], extra[0], roomArray, roomNameArray);
-							}			
-						});
+						if (roomNameArray.length == roomArray.length){
+							console.log("Room Array: " + retRoomArray);
+							console.log("Room Name Array: " + roomNameArray);	
+							socket.emit('login status', "success", extra[1], extra[0], retRoomArray, roomNameArray);
+						}	
 					});
+				});
+			}
+			else{
+				socket.emit('login status', "success", extra[1], extra[0], roomArray, roomNameArray);
+			}			
+		});
 	});
+	
 	
 	// Message received from client that user signed up
 	socket.on('create account', function(fnameSU1, lnameSU1, emailSU1, pwdSU1, conpwdSU){
@@ -622,6 +650,7 @@ io.on('connect', function(socket){
 		
 		mongoInsertForResult("messages", insertobj, character, function(result, extra){
 			if (result.username == extra){
+				console.log("Language for message: '" + result.language + "'");
 				io.sockets.in(result.roomID.toString()).emit('chat message', result.username, result.Message, result.encMessage, result.roomID.toString(), result.language);
 			}			
 		});
