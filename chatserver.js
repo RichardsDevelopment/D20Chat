@@ -152,13 +152,19 @@ io.on('connect', function(socket){
 	
 	// Function to delete document in Mongo collection
 	function mongoDeleteOne(collection, field, value, extra, callback){
-		var deleteobj = {field : value};
+		var deleteobj = {};
+		deleteobj[field] = value;
 		
-		console.log("Deleting first instance of " + deleteobj.toString() + " in " + collection);
+		console.log("Deleting first instance of " + field + " : " + value + " in " + collection);
 		
 		dbo.collection(collection).deleteOne(deleteobj, function(err, obj){
 			if (err) throw err;
-			callback("success", extra);
+			if(obj.result.n == 1){
+				callback("success", extra);
+			}
+			else{
+				callback("fail", extra);
+			}
 		});
 	}
 	
@@ -175,7 +181,8 @@ io.on('connect', function(socket){
 	
 	// Function to delete many documents in Mongo collection
 	function mongoDeleteMany(collection, field, value, extra, callback){
-		var deleteobj = {field : value};
+		var deleteobj = {};
+		deleteobj[field] = value;
 		
 		console.log("Delete any document matching " + deleteobj.toString() + " in the collection " + collection);
 		
@@ -481,62 +488,62 @@ io.on('connect', function(socket){
 	
 	// reload room button list 
 	socket.on('reload rooms', function(userID, email){
-	mongoFindAllRooms("roomid", "userID", new ObjectID(userID), [userID, email], function(result, extra){
-		//console.log(userID + " and " + email)
-		var roomArray = new Array();
-		var retRoomArray = new Array();
-		var roomNameArray = new Array();
+		mongoFindAllRooms("roomid", "userID", new ObjectID(userID), [userID, email], function(result, extra){
+			//console.log(userID + " and " + email)
+			var roomArray = new Array();
+			var retRoomArray = new Array();
+			var roomNameArray = new Array();
 							
-		if (result.length == 0){
-			// leave arrays empty
-			console.log("No rooms for user " + extra[0]);
-		}
-		else{
-			//console.log("Rooms found where user is GM");
-			result.forEach(function(doc){
-				//console.log("Room " + doc._id.toString() + " found for user " + doc.userID.toString());
-				roomArray.push([doc._id.toString(), "GM", "ALL"]);
-			});
-		}
-		mongoFindAll("chars", "userID", new ObjectID(extra[0]), extra, function(result, extra){							
-			if (result == null){
-				console.log("No characters for user " + extra[0] + " with email " + extra[1]);
+			if (result.length == 0){
 				// leave arrays empty
+				console.log("No rooms for user " + extra[0]);
 			}
 			else{
+				//console.log("Rooms found where user is GM");
 				result.forEach(function(doc){
-					trimmedLangs(doc.roomID.toString(), doc.char_name, doc.char_langs, function(data){
-						roomArray.push(data);
-					});
+					//console.log("Room " + doc._id.toString() + " found for user " + doc.userID.toString());
+					roomArray.push([doc._id.toString(), "GM", "ALL"]);
 				});
 			}
-			if (roomArray.length > 0){
-				roomArray.forEach(function(room){
-					getRoomNames(new ObjectID(room[0]), function(data){
-						if(data == null){
-							console.log("No room found for room id: " + room[0]);
-							// Do nothing, no rooms exist for user
-						}
-						else{
-							//console.log(data.room_name);
-							retRoomArray.push(room);
-							roomNameArray.push(data.room_name);
-							console.log("RoomID: " + data._id.toString() + " room_name: " + data.room_name + " at index " + (roomNameArray.length-1));
-						}
-						if (roomNameArray.length == roomArray.length){
-							console.log("Room Array: " + retRoomArray);
-							console.log("Room Name Array: " + roomNameArray);	
-							socket.emit('login status', "success", extra[1], extra[0], retRoomArray, roomNameArray);
-						}	
+			mongoFindAll("chars", "userID", new ObjectID(extra[0]), extra, function(result, extra){							
+				if (result == null){
+					console.log("No characters for user " + extra[0] + " with email " + extra[1]);
+					// leave arrays empty
+				}
+				else{
+					result.forEach(function(doc){
+						trimmedLangs(doc.roomID.toString(), doc.char_name, doc.char_langs, function(data){
+							roomArray.push(data);
+						});
 					});
-				});
-			}
-			else{
-				socket.emit('login status', "success", extra[1], extra[0], roomArray, roomNameArray);
-			}			
+				}
+				if (roomArray.length > 0){
+					roomArray.forEach(function(room){
+						getRoomNames(new ObjectID(room[0]), function(data){
+							if(data == null){
+								console.log("No room found for room id: " + room[0]);
+								// Do nothing, no rooms exist for user
+							}
+							else{
+								//console.log(data.room_name);
+								retRoomArray.push(room);
+								roomNameArray.push(data.room_name);
+								console.log("RoomID: " + data._id.toString() + " room_name: " + data.room_name + " at index " + (roomNameArray.length-1));
+							}
+							if (roomNameArray.length == roomArray.length){
+								console.log("Room Array: " + retRoomArray);
+								console.log("Room Name Array: " + roomNameArray);	
+								socket.emit('login status', "success", extra[1], extra[0], retRoomArray, roomNameArray);
+							}	
+						});
+					});
+				}
+				else{
+					socket.emit('login status', "success", extra[1], extra[0], roomArray, roomNameArray);
+				}			
+			});
 		});
 	});
-	
 	
 	// Message received from client that user signed up
 	socket.on('create account', function(fnameSU1, lnameSU1, emailSU1, pwdSU1, conpwdSU){
@@ -659,11 +666,13 @@ io.on('connect', function(socket){
 	// When message is received to delete a room, call function depending on character name of user
 	socket.on('delete room', function(roomID, character){
 		if(character == "GM"){
-			deleteEntireRoom(roomID, function(result){
+			console.log("Character is GM, deleting " + roomID);
+			mongoDeleteOne("roomid", "_id", new ObjectID(roomID), null, function(result, extra){
 				if(result != "success"){
 					console.log("Something went wrong deleting entire room!");
 				}
 				else{
+					console.log(result);
 					deleteRoomChars(roomID, character, function(result){
 						if(result == "success"){
 							deleteRoomMessages(roomID, function(res){
@@ -681,6 +690,29 @@ io.on('connect', function(socket){
 					});
 				}
 			});
+			/* deleteEntireRoom(roomID, function(result){
+				if(result != "success"){
+					console.log("Something went wrong deleting entire room!");
+				}
+				else{
+					console.log(result);
+					deleteRoomChars(roomID, character, function(result){
+						if(result == "success"){
+							deleteRoomMessages(roomID, function(res){
+								if(res == "success"){
+									socket.emit('deletion successful');
+								}
+								else{
+									console.log("Error deleting messages for room.");
+								}
+							});
+						}
+						else{
+							console.log("Error deleting characters for room.");
+						}
+					});
+				}
+			}); */
 		}
 		else{
 			deleteRoomChars(roomID, character, function(result){

@@ -382,11 +382,7 @@
 		
 		// Function to emit deletion to server 
 		function delRoom(){
-			if (activeChar == "GM"){
-				$("#deleteCharModal").dialog( "close" );
-				socket.emit('delete room', activeRoom, activeChar);
-			}
-			else if(activeChar == undefined){
+			if(activeChar == undefined){
 				$("#deleteCharModal").dialog( "close" );
 				alert("Please select a room to delete!");
 			}
