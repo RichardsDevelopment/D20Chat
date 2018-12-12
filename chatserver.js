@@ -73,9 +73,7 @@ io.on('connect', function(socket){
 	function mongoFind(collection, field, value, extra, callback){
 		var searchobj = {};
 		searchobj[field] = value;
-		
-		console.log("Finding one record where " + searchobj.toString() + " in " + collection);
-		
+
 		dbo.collection(collection).findOne(searchobj, function(err, result){
 			if (err) throw err;
 			callback(result, extra);
@@ -87,13 +85,8 @@ io.on('connect', function(socket){
 		var searchobj = {};
 		searchobj[field] = value;
 		
-		console.log("Finding all records where {" + field + " : " + value + "} in " + collection);
-		
 		dbo.collection(collection).find(searchobj).toArray(function(err, result){
 			if (err) throw err;
-			result.forEach(function(doc){
-				console.log(doc.room_name);
-			});
 			callback(result, extra);
 		});
 	}
@@ -103,13 +96,8 @@ io.on('connect', function(socket){
 		var searchobj = {};
 		searchobj[field] = value;
 		
-		console.log("Finding all records where {" + field + " : " + value + "} in " + collection);
-		
 		dbo.collection(collection).find(searchobj).sort().toArray(function(err, result){
 			if (err) throw err;
-			result.forEach(function(doc){
-				console.log(doc.room_name);
-			});
 			callback(result, extra);
 		});
 	}
@@ -119,9 +107,7 @@ io.on('connect', function(socket){
 	function mongoFindAllSortLimit(collection, field, value, sort, limit, callback){
 		var searchobj = {field : value};
 		var sortby = {sort : 1};
-			
-		console.log("Finding all documents where " + searchobj.toString() + " sort by " + sortby.toString() + " limit " + limit + " in " + collection);
-			
+		
 		dbo.collection(collection).find(searchobj).sort(sortby).limit(limit).toArray(function(err, result){
 			if (err) throw err;
 			callback(result);
@@ -130,9 +116,7 @@ io.on('connect', function(socket){
 	
 	// Function to insert documents into Mongo collection
 	function mongoInsert(collection, doc, extra, callback){
-		
-		console.log("Inserting into " + collection);
-		
+
 		dbo.collection(collection).insertOne(doc, function(err, res){
 			if (err) throw err;
 			callback("success", extra);
@@ -141,9 +125,7 @@ io.on('connect', function(socket){
 	
 	// Function to insert document into collection and return inserted document
 	function mongoInsertForResult(collection, doc, extra, callback){
-		
-		console.log("Inserting " + doc.toString() + " into " + collection);
-		
+
 		dbo.collection(collection).insertOne(doc, function(err, res){
 			if (err) throw err;
 			callback(res.ops[0], extra);
@@ -154,9 +136,7 @@ io.on('connect', function(socket){
 	function mongoDeleteOne(collection, field, value, extra, callback){
 		var deleteobj = {};
 		deleteobj[field] = value;
-		
-		console.log("Deleting first instance of " + field + " : " + value + " in " + collection);
-		
+
 		dbo.collection(collection).deleteOne(deleteobj, function(err, obj){
 			if (err) throw err;
 			if(obj.result.n == 1){
@@ -170,9 +150,7 @@ io.on('connect', function(socket){
 	
 	// Function to delete document in Mongo collection passing in object
 	function mongoDeleteOneWithDoc(collection, doc, extra, callback){
-		
-		console.log("Deleting document matching " + doc.toString() + " in collection " + collection);
-		
+
 		dbo.collection(collection).deleteOne(doc, function(err, obj){
 			if (err) throw err;
 			callback("success", extra);
@@ -183,9 +161,7 @@ io.on('connect', function(socket){
 	function mongoDeleteMany(collection, field, value, extra, callback){
 		var deleteobj = {};
 		deleteobj[field] = value;
-		
-		console.log("Delete any document matching " + deleteobj.toString() + " in the collection " + collection);
-		
+
 		dbo.collection(collection).deleteMany(deleteobj, function(err, obj){
 			if (err) throw err;
 			callback("success", extra);
@@ -194,9 +170,7 @@ io.on('connect', function(socket){
 	
 	// Function to get room name given room id
 	function getRoomNames(roomID, callback){
-		
-			console.log("Finding room name for room with _id" + roomID);
-			
+
 			mongoFind("roomid", "_id", new ObjectID(roomID), null, function(result, extra){
 				callback(result);
 			});
@@ -210,8 +184,6 @@ io.on('connect', function(socket){
 		insertobj["char_name"] = name;
 		insertobj["char_langs"] = langs;
 
-		console.log("Inserting document " + insertobj.toString() + " into collection 'chars'");
-		
 		mongoInsert("chars", insertobj, null, function(result, extra){
 			callback(result);			
 		});
@@ -230,9 +202,7 @@ io.on('connect', function(socket){
 	
 	// Function to delete entire room if necessary
 	function deleteEntireRoom(roomID, callback){
-		
-		console.log("Deleting entire room from 'roomid' with id " + roomID);
-		
+
 		mongoDeleteOne("roomid", "_id", new ObjectID(roomID), null, function(result, extra){
 			callback(result);
 		});
@@ -240,9 +210,7 @@ io.on('connect', function(socket){
 	
 	// Function to delete all messages from a deleted room
 	function deleteRoomMessages(roomID, callback){
-		
-		console.log("Deleting all messages from room with id " + roomID);
-		
+
 		mongoDeleteMany("messages", "roomID", new ObjectID(roomID), null, function(result, extra){
 			callback(result);
 		});
@@ -268,15 +236,11 @@ io.on('connect', function(socket){
 	// Function to create an array of message information arrays
 	function storeMsgs(result, callback){
 		var msgByRoom = [];
-		
-		console.log("Parsing all messages for the room...");
-		
+
 		result.forEach(function(message){
 			msgByRoom.push([message.username, message.message, message.encMessage, message.roomID.tostring(), message.language]);
 		});
-		
-		console.log("Finished: " + msgByRoom);
-		
+
 		callback(msgByRoom);
 	}
 	
@@ -314,7 +278,6 @@ io.on('connect', function(socket){
 			
 			addChar(saniName, roomID, saniEmail, saniLangs, function(result){				
 				if(result == "addCharError"){
-					//console.log("Something went wrong adding character to 'chars' collection!");
 					callback("error");
 				}
 			});
@@ -342,7 +305,6 @@ io.on('connect', function(socket){
 				langErrors++;
 			}
 			if (i == (numChars - 1)){
-				console.log("Calling back (" + nameErrors + ", "+langErrors+", 'done')");
 				callback(nameErrors, langErrors, "done");
 			}
 		}
@@ -404,39 +366,30 @@ io.on('connect', function(socket){
 		// Retrieve users with matching email
 		mongoFind("appusers", "email", email, check_pass, function(result, check_pass){
 			if(result == null){
-				console.log("no user " + email + " found!");
 				socket.emit('login status', "fail", "null", "null", "null", "null");
 			}
 			else{
-				console.log("User found");
 				var result_p = result.password;
 				var sec = result.sec;
 				var checkPass = SHA256(sec.substring(0, 15) + check_pass + sec.substring(16));
 				
 				// IF users password matches on on file, retrieve all rooms, characters and languages for the user
 				if (result_p == checkPass){
-					console.log("Passwords Match!");
-					
 					mongoFindAllRooms("roomid", "userID", result._id, [result._id.toString(), result.email], function(result, extra){
-		//console.log(userID + " and " + email)
 						var roomArray = new Array();
 						var retRoomArray = new Array();
 						var roomNameArray = new Array();
 							
 						if (result.length == 0){
 							// leave arrays empty
-							console.log("No rooms for user " + extra[0]);
 						}
 						else{
-							//console.log("Rooms found where user is GM");
 							result.forEach(function(doc){
-								//console.log("Room " + doc._id.toString() + " found for user " + doc.userID.toString());
 								roomArray.push([doc._id.toString(), "GM", "ALL"]);
 							});
 						}
 						mongoFindAll("chars", "userID", new ObjectID(extra[0]), extra, function(result, extra){							
 							if (result == null){
-								console.log("No characters for user " + extra[0] + " with email " + extra[1]);
 								// leave arrays empty
 							}
 							else{
@@ -450,18 +403,13 @@ io.on('connect', function(socket){
 								roomArray.forEach(function(room){
 									getRoomNames(new ObjectID(room[0]), function(data){
 										if(data == null){
-											console.log("No room found for room id: " + room[0]);
 											// Do nothing, no rooms exist for user
 										}
 										else{
-											//console.log(data.room_name);
 											retRoomArray.push(room);
 											roomNameArray.push(data.room_name);
-											console.log("RoomID: " + data._id.toString() + " room_name: " + data.room_name + " at index " + (roomNameArray.length-1));
 										}
-										if (roomNameArray.length == roomArray.length){
-											console.log("Room Array: " + retRoomArray);
-											console.log("Room Name Array: " + roomNameArray);	
+										if (roomNameArray.length == roomArray.length){	
 											socket.emit('login status', "success", extra[1], extra[0], retRoomArray, roomNameArray);
 										}	
 									});
@@ -482,32 +430,26 @@ io.on('connect', function(socket){
 	
 	// Connects user to single room
 	socket.on('join room', function(roomID) { 
-		console.log("Joining room " + roomID);
 		socket.join(roomID); 
 	})
 	
 	// reload room button list 
 	socket.on('reload rooms', function(userID, email){
 		mongoFindAllRooms("roomid", "userID", new ObjectID(userID), [userID, email], function(result, extra){
-			//console.log(userID + " and " + email)
 			var roomArray = new Array();
 			var retRoomArray = new Array();
 			var roomNameArray = new Array();
 							
 			if (result.length == 0){
 				// leave arrays empty
-				console.log("No rooms for user " + extra[0]);
 			}
 			else{
-				//console.log("Rooms found where user is GM");
 				result.forEach(function(doc){
-					//console.log("Room " + doc._id.toString() + " found for user " + doc.userID.toString());
 					roomArray.push([doc._id.toString(), "GM", "ALL"]);
 				});
 			}
 			mongoFindAll("chars", "userID", new ObjectID(extra[0]), extra, function(result, extra){							
 				if (result == null){
-					console.log("No characters for user " + extra[0] + " with email " + extra[1]);
 					// leave arrays empty
 				}
 				else{
@@ -521,18 +463,13 @@ io.on('connect', function(socket){
 					roomArray.forEach(function(room){
 						getRoomNames(new ObjectID(room[0]), function(data){
 							if(data == null){
-								console.log("No room found for room id: " + room[0]);
 								// Do nothing, no rooms exist for user
 							}
 							else{
-								//console.log(data.room_name);
 								retRoomArray.push(room);
 								roomNameArray.push(data.room_name);
-								console.log("RoomID: " + data._id.toString() + " room_name: " + data.room_name + " at index " + (roomNameArray.length-1));
 							}
-							if (roomNameArray.length == roomArray.length){
-								console.log("Room Array: " + retRoomArray);
-								console.log("Room Name Array: " + roomNameArray);	
+							if (roomNameArray.length == roomArray.length){	
 								socket.emit('login status', "success", extra[1], extra[0], retRoomArray, roomNameArray);
 							}	
 						});
@@ -578,14 +515,12 @@ io.on('connect', function(socket){
 				if (upperLettersNum > 0 && numberNum > 0 && specCharsNum > 0 && pwdSU.length >= 8){
 					mongoFind("appusers", "email", emailSU, null, function(result, extra){
 						if (result != null){
-							console.log("Account exists!");
 							socket.emit('create account status', 'exists');
 						}
 						else{
 							var sec = AES.randomBytes(16).toString('hex');
 							var hashedpwd = SHA256(sec.substring(0, 15) + pwdSU + sec.substring(16)).toString();
 							var insertobj = {"firstName" : fnameSU, "lastName" : lnameSU, "email" : emailSU, "password" : hashedpwd, "sec" : sec};
-							console.log(insertobj);
 							mongoInsert("appusers", insertobj, null, function(result, extra){
 								socket.emit('create account status', result);
 							});
@@ -619,9 +554,7 @@ io.on('connect', function(socket){
 		checkNamesLangs(numChars, roomChars, function(nameerr, langerr, result){
 			if (nameerr == 0 && langerr == 0){
 				addRoom(userID, roomName, function(roomID){
-					console.log("Added room, got roomID: " + roomID);
 					sanitizeAllChars(numChars, roomChars, roomID, function(result){
-						console.log("emitting " + result);
 						socket.emit('char creation status', result);        
 					});
 				});
@@ -657,7 +590,6 @@ io.on('connect', function(socket){
 		
 		mongoInsertForResult("messages", insertobj, character, function(result, extra){
 			if (result.username == extra){
-				console.log("Language for message: '" + result.language + "'");
 				io.sockets.in(result.roomID.toString()).emit('chat message', result.username, result.Message, result.encMessage, result.roomID.toString(), result.language);
 			}			
 		});
@@ -666,13 +598,11 @@ io.on('connect', function(socket){
 	// When message is received to delete a room, call function depending on character name of user
 	socket.on('delete room', function(roomID, character){
 		if(character == "GM"){
-			console.log("Character is GM, deleting " + roomID);
 			mongoDeleteOne("roomid", "_id", new ObjectID(roomID), null, function(result, extra){
 				if(result != "success"){
 					console.log("Something went wrong deleting entire room!");
 				}
 				else{
-					console.log(result);
 					deleteRoomChars(roomID, character, function(result){
 						if(result == "success"){
 							deleteRoomMessages(roomID, function(res){
@@ -690,29 +620,6 @@ io.on('connect', function(socket){
 					});
 				}
 			});
-			/* deleteEntireRoom(roomID, function(result){
-				if(result != "success"){
-					console.log("Something went wrong deleting entire room!");
-				}
-				else{
-					console.log(result);
-					deleteRoomChars(roomID, character, function(result){
-						if(result == "success"){
-							deleteRoomMessages(roomID, function(res){
-								if(res == "success"){
-									socket.emit('deletion successful');
-								}
-								else{
-									console.log("Error deleting messages for room.");
-								}
-							});
-						}
-						else{
-							console.log("Error deleting characters for room.");
-						}
-					});
-				}
-			}); */
 		}
 		else{
 			deleteRoomChars(roomID, character, function(result){
@@ -728,6 +635,6 @@ io.on('connect', function(socket){
 	
 	// on 'disconnect' set all vars to null
 	socket.on('disconnect', function(){
-		console.log("User disconnected!");
+		// Do nothing yet
 	});
 });
